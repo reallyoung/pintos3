@@ -5,7 +5,8 @@
 #include "userprog/syscall.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-
+#include "vm/page.h"
+#include "threads/vaddr.h"
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -148,8 +149,17 @@ page_fault (struct intr_frame *f)
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
-
-  sys_exit(-1);
+  if(not_present && is_user_vaddr(fault_addr))
+  {
+    struct spte* s;
+    bool success;
+    s = get_spte(&thread_current()->spt,fault_addr);
+    success = load_from_file(s);
+    if(!success)
+        PANIC("NOT success in load_from_file\n");
+    return;
+  }
+   // sys_exit(-1);
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
@@ -159,6 +169,8 @@ page_fault (struct intr_frame *f)
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
+  PANIC("why?\n");
+  sys_exit(-1);
   kill (f);
 }
 
