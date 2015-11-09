@@ -149,7 +149,7 @@ page_fault (struct intr_frame *f)
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
-  if(not_present && is_user_vaddr(fault_addr))
+  if(not_present && is_user_vaddr(fault_addr) && fault_addr > (void *) 0x08048000)
   {
     struct spte* s;
     bool success;
@@ -159,7 +159,7 @@ page_fault (struct intr_frame *f)
         PANIC("NOT success in load_from_file\n");
     return;
   }
-   // sys_exit(-1);
+  sys_exit(-1);
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
@@ -169,7 +169,7 @@ page_fault (struct intr_frame *f)
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
-  PANIC("why?\n");
+  //PANIC("why?\n");
   sys_exit(-1);
   kill (f);
 }

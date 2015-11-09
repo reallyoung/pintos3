@@ -46,9 +46,9 @@ struct spte* get_spte(struct hash* spt, void* vaddr)
 {
     struct hash_elem* e;
     struct spte ispte;
-    //unsigned mask = 0xfffff000;
-    //ispte.vaddr = (void *)((unsigned)vaddr & mask);
-    ispte.vaddr = pg_round_down(vaddr);
+    unsigned mask = 0xfffff000;
+    ispte.vaddr = (void *)((unsigned)vaddr & mask);
+   // ispte.vaddr = pg_round_down(vaddr);
 
     e = hash_find(spt,&ispte.elem);
     
@@ -65,8 +65,9 @@ bool load_from_file(struct spte* s)
 
     ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0); 
     ASSERT (pg_ofs (upage) == 0); 
-    ASSERT (ofs % PGSIZE == 0); 
-
+    //ASSERT (ofs % PGSIZE == 0); 
+    //if(ofs % PGSIZE != 0)
+    //    sys_exit(-1);
     //file_seek (file, ofs);
     if (read_bytes > 0 || zero_bytes > 0)  
     {   

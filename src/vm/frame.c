@@ -18,7 +18,7 @@ void* falloc(enum palloc_flags flags)
 RETRY:
     if(flags & PAL_USER == 0)
     {
-        PANIC("falloc not pal_user\n");
+        //PANIC("falloc not pal_user\n");
         return NULL;
     }
     kpage = palloc_get_page(flags);
