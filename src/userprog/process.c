@@ -376,8 +376,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
-    goto done;
+  //if (!setup_stack (esp))
+  //  goto done;
+  if(!make_stack_page(esp))
+      goto done;
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -457,6 +459,7 @@ static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
+    // this is unused function
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
@@ -471,7 +474,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = falloc (PAL_USER);
+      uint8_t *kpage = falloc (PAL_USER, NULL);
       if (kpage == NULL)
         return false;
 
@@ -495,6 +498,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
     }
+
   return true;
 }
 
@@ -506,7 +510,7 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-  kpage = falloc (PAL_USER | PAL_ZERO);
+  kpage = falloc (PAL_USER | PAL_ZERO, NULL);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);

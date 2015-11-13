@@ -12,7 +12,7 @@ void init_frame_table()
     lock_init(&ft_lock);
 }
 
-void* falloc(enum palloc_flags flags)
+void* falloc(enum palloc_flags flags, struct spte* spte)
 {
     void* kpage;
 RETRY:
@@ -32,7 +32,7 @@ RETRY:
     }
     else
     {
-        frame_insert(kpage);
+        frame_insert(kpage,spte);
     }
     return kpage;
 
@@ -62,11 +62,12 @@ void frame_free(void* faddr)
     }
 
 }
-void frame_insert(void* faddr)
+void frame_insert(void* faddr, struct spte* spte)
 {
     struct frame* f= (struct frame*)malloc(sizeof(struct frame));
     f->faddr = faddr;
     f->t = thread_current();
+    f->spte = spte;
     //f->pte = lookup_page(f->t->pagedir,);
     list_push_back(&ft,&f->elem);
     

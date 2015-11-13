@@ -149,6 +149,21 @@ page_fault (struct intr_frame *f)
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
+  
+  if(user)
+      thread_current()->esp = f->esp;
+
+  //grow stack
+  if(not_present && is_user_vaddr(fault_addr) && fault_addr > (void*)STACK_END)
+  {
+    if(fault_addr < (thread_current()->esp - 32))
+        sys_exit(-1);
+    if(!grow_stack(fault_addr))
+        PANIC("grow stack failed!\n");
+    return;
+  }
+
+  //load from file
   if(not_present && is_user_vaddr(fault_addr) && fault_addr > (void *) 0x08048000)
   {
     struct spte* s;

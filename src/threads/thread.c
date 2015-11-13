@@ -631,6 +631,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->exit_code = 0;
   t->end = false;
   t->success_to_load = false;
+  t->esp = NULL;
   sema_init (&t->wait_this, 0); /* For Project #2 */
   sema_init (&t->kill_this, 0);
   sema_init (&t->wait_start_process, 0);

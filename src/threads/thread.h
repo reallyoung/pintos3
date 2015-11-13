@@ -106,6 +106,7 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
     struct hash spt;
+    void* esp;
 #endif
 
     /* Owned by thread.c. */
