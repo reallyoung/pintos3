@@ -32,7 +32,7 @@ bool init_spt(struct hash* spt)
 {
    return hash_init(spt,spt_hash_func, spt_less_func, NULL);
 }
-static bool
+bool
 install_page_s (void *upage, void *kpage, bool writable)
 {
     struct thread *t = thread_current (); 
@@ -127,6 +127,7 @@ bool lazy_load_segment(struct file *file, off_t ofs_, uint8_t *upage,
         s->type = file_t;
         s->vaddr = upage;
         s->t = thread_current();
+        s->in_swap = false;
         s->pinned = false;
         s->file = file;
         s->offset = ofs;
@@ -161,7 +162,9 @@ bool make_stack_page(void **esp)
     s->vaddr = *esp;
     s->t = thread_current();
     s->pinned = false;
-   
+    s->writable =true;
+    s->in_swap = false;
+
     kpage = falloc(PAL_USER | PAL_ZERO, s);
     if(kpage != NULL)
     {
@@ -198,6 +201,8 @@ bool grow_stack(void* fault_addr)
     s->vaddr = pg_round_down(fault_addr);
     s->t = thread_current();
     s->pinned = false;
+    s->writable = true;
+    s->in_swap =false;
    
     kpage = falloc(PAL_USER | PAL_ZERO, s);
     if(kpage != NULL)

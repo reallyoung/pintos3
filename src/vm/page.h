@@ -6,14 +6,13 @@
 #include <stdint.h>
 #include "threads/vaddr.h"
 
-#define STACK_END (PHYS_BASE - (1 << 21))
+#define STACK_END (PHYS_BASE - (1 << 23))
 // PHYS_BASE - 8MB
 enum spte_t
 {
     file_t = 0,
-    swap_t = 1,
-    mmap_t = 2,
-    stack_t = 3
+    mmap_t = 1,
+    stack_t = 2
 };
 
 struct spte{
@@ -21,12 +20,15 @@ struct spte{
     bool pinned;
     void* vaddr;
     struct thread* t;
+    bool in_swap;
 
     struct file* file;
     off_t offset;
     uint32_t read_byte;
     uint32_t zero_byte;
     bool writable;
+    
+    size_t swap_idx;
 
     struct hash_elem elem;
 };

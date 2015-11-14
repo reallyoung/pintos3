@@ -7,6 +7,8 @@
 #include "threads/thread.h"
 #include "vm/page.h"
 #include "threads/vaddr.h"
+#include "vm/swap.h"
+#include "vm/frame.h"
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -152,8 +154,7 @@ page_fault (struct intr_frame *f)
   
   if(user)
       thread_current()->esp = f->esp;
-
-  //grow stack
+ //grow stack
   if(not_present && is_user_vaddr(fault_addr) && fault_addr > (void*)STACK_END)
   {
     if(fault_addr < (thread_current()->esp - 32))
@@ -162,18 +163,33 @@ page_fault (struct intr_frame *f)
         PANIC("grow stack failed!\n");
     return;
   }
-
-  //load from file
+  //load
   if(not_present && is_user_vaddr(fault_addr) && fault_addr > (void *) 0x08048000)
   {
     struct spte* s;
     bool success;
+    uint8_t* kpage;
     s = get_spte(&thread_current()->spt,fault_addr);
-    success = load_from_file(s);
-    if(!success)
-        PANIC("NOT success in load_from_file\n");
-    return;
+    if(s == NULL)
+        goto EXIT;
+    if(s->in_swap)
+    {//swap in
+        //PANIC("is it???\n");
+        kpage = falloc(PAL_USER|PAL_ZERO, s);
+        swap_in(s->vaddr,s->swap_idx);
+        install_page_s(s->vaddr, kpage, s->writable);
+        s->in_swap = false;
+        return;
+    }
+    else if(s->type == file_t)
+    {//load from file
+        success = load_from_file(s);
+        if(!success)
+            PANIC("NOT success in load_from_file\n");
+        return;
+    }
   }
+EXIT:
   sys_exit(-1);
 
   /* To implement virtual memory, delete the rest of the function
