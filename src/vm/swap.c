@@ -20,6 +20,7 @@ size_t swap_out(void* buf)
 //write in swap disk
     size_t bit_idx;
     int i;
+    printf("swap out\n");
     lock_acquire(&swap_lock);
     // 1page = 8 sector
     if(swap_table.bitmap == NULL)
@@ -41,6 +42,7 @@ void swap_in(void* buf, size_t bit_idx)
 {
 //read from swap
     int i;
+    printf("swap in\n");
     for(i = 0; i<8; i++)
         block_read(swap_table.sd, bit_idx + i, buf +(BLOCK_SECTOR_SIZE * i));
    

@@ -54,7 +54,9 @@ struct spte* get_spte(struct hash* spt, void* vaddr)
     ispte.vaddr = (void *)((unsigned)vaddr & mask);
 
     e = hash_find(spt,&ispte.elem);
-    
+    if(e == NULL)
+        return NULL;
+
     return (struct spte*)hash_entry(e,struct spte, elem);
 }
 bool load_from_file(struct spte* s)
@@ -159,11 +161,11 @@ bool make_stack_page(void **esp)
     *esp = PHYS_BASE;
     s = (struct spte*)malloc(sizeof(struct spte));
     s->type = stack_t;
-    s->vaddr = *esp;
+    s->vaddr = *esp - PGSIZE;
     s->t = thread_current();
     s->pinned = false;
-    s->writable =true;
     s->in_swap = false;
+    s->writable = true;
 
     kpage = falloc(PAL_USER | PAL_ZERO, s);
     if(kpage != NULL)
@@ -201,9 +203,8 @@ bool grow_stack(void* fault_addr)
     s->vaddr = pg_round_down(fault_addr);
     s->t = thread_current();
     s->pinned = false;
-    s->writable = true;
     s->in_swap =false;
-   
+    s->writable = true;
     kpage = falloc(PAL_USER | PAL_ZERO, s);
     if(kpage != NULL)
     {

@@ -57,7 +57,7 @@ void frame_free(void* faddr)
     if(find)
     {
         list_remove(&f->elem);
-        //pagedir_clear_page(f->t->pagedir, f->spte->vaddr);
+        pagedir_clear_page(f->t->pagedir, f->spte->vaddr);
         palloc_free_page(faddr);
         free(f);
     }
