@@ -3,7 +3,8 @@
 void swap_init()
 {
     lock_init(&swap_lock);
-   // printf("1212\n");
+    lock_init(&disk_lock);
+    // printf("1212\n");
     swap_table.sd = block_get_role(BLOCK_SWAP);
    // printf("2323\n");
     if(swap_table.sd == NULL)
@@ -20,7 +21,7 @@ size_t swap_out(void* buf)
 //write in swap disk
     size_t bit_idx;
     int i;
-    printf("swap out\n");
+   // printf("swap out\n");
     lock_acquire(&swap_lock);
     // 1page = 8 sector
     if(swap_table.bitmap == NULL)
@@ -29,10 +30,11 @@ size_t swap_out(void* buf)
     lock_release(&swap_lock);
 
     if(bit_idx == BITMAP_ERROR)
-        PANIC("swap disk is full");
+        PANIC("swap disk is full\n");
+   lock_acquire(&disk_lock);
     for(i = 0; i<8; i++)
         block_write(swap_table.sd, bit_idx + i, buf +(BLOCK_SECTOR_SIZE * i));
-
+    lock_release(&disk_lock);
 
     return bit_idx;
 //returns bitmap index
@@ -42,10 +44,12 @@ void swap_in(void* buf, size_t bit_idx)
 {
 //read from swap
     int i;
-    printf("swap in\n");
+    //printf("swap in\n");
+    lock_acquire(&disk_lock);
     for(i = 0; i<8; i++)
         block_read(swap_table.sd, bit_idx + i, buf +(BLOCK_SECTOR_SIZE * i));
-   
+    lock_release(&disk_lock);
+
     lock_acquire(&swap_lock); 
     bitmap_set_multiple(swap_table.bitmap, bit_idx, 8, false);
     lock_release(&swap_lock);

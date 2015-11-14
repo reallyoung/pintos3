@@ -5,7 +5,7 @@
 #include "threads/synch.h"
 
 struct lock swap_lock;
-
+struct lock disk_lock;
 struct swap_table_{
     struct bitmap* bitmap;
     struct block* sd;

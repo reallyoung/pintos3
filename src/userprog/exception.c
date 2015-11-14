@@ -164,8 +164,9 @@ page_fault (struct intr_frame *f)
         {//swap in
             //PANIC("is it???\n");
             kpage = falloc(PAL_USER|PAL_ZERO, s);
-            swap_in(s->vaddr,s->swap_idx);
+            //swap_in(s->vaddr,s->swap_idx);
             install_page_s(s->vaddr, kpage, s->writable);
+            swap_in(s->vaddr, s->swap_idx);
             s->in_swap = false;
             return;
         }

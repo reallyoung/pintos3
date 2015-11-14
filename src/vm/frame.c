@@ -30,6 +30,7 @@ RETRY:
         //PANIC("palloc fail in falloc\n");
         //evict and retry
         frame_evict();
+        lock_release(&ft_lock);
         goto RETRY;
     }
     else
@@ -102,8 +103,12 @@ void frame_evict()
                // pagedir_set_dirty(f->t->pagedir, f->spte->vaddr, false);
             }
             //remove page
-            lock_release(&ft_lock);
-            frame_free(f->faddr);
+            list_remove(&f->elem);
+            pagedir_clear_page(f->t->pagedir, f->spte->vaddr);
+            palloc_free_page(f->faddr);
+            free(f);
+            //lock_release(&ft_lock);
+            //frame_free(f->faddr);
             //lock_release(&ft_lock);
             break;
         }
