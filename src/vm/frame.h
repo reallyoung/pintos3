@@ -24,5 +24,5 @@ void* falloc(enum palloc_flags flags,struct spte* spte);
 void frame_free(void* faddr);
 void frame_insert(void* faddr, struct spte* spte);
 void frame_evict();
-
+void frame_free_on_exit();
 #endif

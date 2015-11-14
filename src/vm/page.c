@@ -81,7 +81,8 @@ bool load_from_file(struct spte* s)
          *                   and zero the final PAGE_ZERO_BYTES bytes. */
         size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
         size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
+        
+        s->pinned = true;
         /* Get a page of memory. */
         void* kpage = falloc (PAL_USER, s);
         if (kpage == NULL)
@@ -104,6 +105,7 @@ bool load_from_file(struct spte* s)
             return false; 
         }   
     }
+    s->pinned = false;
     return true;
 }
 //replace load_segment
@@ -163,7 +165,7 @@ bool make_stack_page(void **esp)
     s->type = stack_t;
     s->vaddr = *esp - PGSIZE;
     s->t = thread_current();
-    s->pinned = false;
+    s->pinned = true;
     s->in_swap = false;
     s->writable = true;
 
@@ -180,6 +182,7 @@ bool make_stack_page(void **esp)
         {
             thread_current()->esp = *esp;
             success = !hash_insert(&thread_current()->spt, &s->elem);
+            s->pinned = false;
             if(!success)
                 PANIC("fail to hash_insert -make_stack_page-\n");
         }
@@ -202,7 +205,7 @@ bool grow_stack(void* fault_addr)
     s->type = stack_t;
     s->vaddr = pg_round_down(fault_addr);
     s->t = thread_current();
-    s->pinned = false;
+    s->pinned = true;
     s->in_swap =false;
     s->writable = true;
     kpage = falloc(PAL_USER | PAL_ZERO, s);
@@ -228,6 +231,8 @@ bool grow_stack(void* fault_addr)
         printf("gs falloc fail\n");
         free(s);
     }
+    if(intr_context())
+        s->pinned = false;
     return success;
     
 }

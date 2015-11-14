@@ -163,11 +163,13 @@ page_fault (struct intr_frame *f)
         if(s != NULL && s->in_swap)
         {//swap in
             //PANIC("is it???\n");
+            s->pinned = true;
             kpage = falloc(PAL_USER|PAL_ZERO, s);
             //swap_in(s->vaddr,s->swap_idx);
             install_page_s(s->vaddr, kpage, s->writable);
             swap_in(s->vaddr, s->swap_idx);
             s->in_swap = false;
+            s->pinned = false;
             return;
         }
     }

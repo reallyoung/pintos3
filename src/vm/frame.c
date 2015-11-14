@@ -17,26 +17,36 @@ void init_frame_table()
 void* falloc(enum palloc_flags flags, struct spte* spte)
 {
     void* kpage;
-RETRY:
     if(flags & PAL_USER == 0)
     {
         //PANIC("falloc not pal_user\n");
         return NULL;
     }
+    //printf("0 %s %d\n",spte->t->name, spte->t->tid);
+    lock_acquire(&ft_lock);
+RETRY:
+    //printf("1 %s %d\n",spte->t->name, spte->t->tid);
     kpage = palloc_get_page(flags);
-    
+    //lock_release(&ft_lock);
     if(kpage == NULL)
     {
+        //printf("2 %s %d\n",spte->t->name, spte->t->tid);
         //PANIC("palloc fail in falloc\n");
         //evict and retry
         frame_evict();
-        lock_release(&ft_lock);
+        //printf("3 %s %d\n",spte->t->name, spte->t->tid);
+        //lock_release(&ft_lock);
         goto RETRY;
     }
     else
     {
+        //printf("4 %s %d\n",spte->t->name, spte->t->tid);
         frame_insert(kpage,spte);
+        //printf("5 %s %d\n",spte->t->name, spte->t->tid);
+        //lock_release(&ft_lock);
     }
+    lock_release(&ft_lock);
+    //printf("6 %s %d\n",spte->t->name, spte->t->tid);
     return kpage;
 
 }
@@ -45,6 +55,7 @@ void frame_free(void* faddr)
     struct list_elem* e;
     struct frame* f;
     bool find = false;
+    //printf("10\n");
     lock_acquire(&ft_lock);
     for(e=list_begin(&ft);e!=list_end(&ft);e=list_next(e))
     {
@@ -66,7 +77,9 @@ void frame_free(void* faddr)
     {
         PANIC("frame_free failed (not found)\n");
     }
+    //printf("11\n");
     lock_release(&ft_lock);
+    //printf("12\n");
 
 }
 void frame_insert(void* faddr, struct spte* spte)
@@ -76,20 +89,22 @@ void frame_insert(void* faddr, struct spte* spte)
     f->t = thread_current();
     f->spte = spte;
     //f->pte = lookup_page(f->t->pagedir,);
-    lock_acquire(&ft_lock);
+    //lock_acquire(&ft_lock);
     list_push_back(&ft,&f->elem);
-    lock_release(&ft_lock);
+    //lock_release(&ft_lock);
     
 }
 void frame_evict()
 {
     struct list_elem* e;
     struct frame* f;
-    lock_acquire(&ft_lock);
+    //lock_acquire(&ft_lock);
     e = list_begin(&ft);
     while(1)
     {
         f = list_entry(e, struct frame, elem);
+        if(f->spte->pinned)
+            goto NXT;
         if(pagedir_is_accessed(f->t->pagedir, f->spte->vaddr))
         {//give second chance
             pagedir_set_accessed(f->t->pagedir, f->spte->vaddr, false);
@@ -112,9 +127,34 @@ void frame_evict()
             //lock_release(&ft_lock);
             break;
         }
+NXT:
         e = list_next(e);
         if( e == list_end(&ft) )
             e = list_begin(&ft);
     }
 
+}
+void frame_free_on_exit()
+{
+    struct thread* t = thread_current();
+    struct list_elem* e;
+    struct list_elem* ne;
+    struct frame* f;
+    e = list_begin(&ft);
+    //ne = e;
+   //printf("01\n");
+    while(e != list_end(&ft))
+    {
+        ne = list_next(e);
+        f = list_entry(e,struct frame, elem);
+        if(f->t == t)
+        {
+            list_remove(e);
+            pagedir_clear_page(f->t->pagedir, f->spte->vaddr);
+            palloc_free_page(f->faddr);
+            free(f);
+        }
+        e = ne;
+    }
+    //printf("02\n");
 }
