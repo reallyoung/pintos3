@@ -35,6 +35,7 @@ void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  lock_init(&filesys_lock);
 }
 
 static void
@@ -68,51 +69,69 @@ syscall_handler (struct intr_frame *f)
       sys_exit(-1);
     esp_under_phys_base(f, 2);
     under_phys_base (*((int **)f->esp + 1));
+    lock_acquire(&filesys_lock);
     sys_create (*((int **)f->esp + 1), *((int *)f->esp + 2), f);
+    lock_release(&filesys_lock);
     break;
   case SYS_REMOVE:
     esp_under_phys_base(f, 1);
     under_phys_base (*((int **)f->esp + 1));
+    lock_acquire(&filesys_lock);
     sys_remove (*((int **)f->esp + 1), f);
+    lock_release(&filesys_lock);
     break;
   case SYS_OPEN:
     if ((void*)*((int **)f->esp + 1) == NULL)
       sys_exit(-1);
     esp_under_phys_base(f, 1);
     under_phys_base (*((int **)f->esp + 1));
+    lock_acquire(&filesys_lock);
     sys_open (*((int **)f->esp + 1), f);
+    lock_release(&filesys_lock);
     break;
   case SYS_FILESIZE:
     esp_under_phys_base(f, 1);
     check_fd(*((int *)f->esp + 1), -1, f);
+    lock_acquire(&filesys_lock);
     sys_filesize (*((int *)f->esp + 1), f);
+    lock_release(&filesys_lock);
     break;
   case SYS_READ:
     esp_under_phys_base(f, 3);
     under_phys_base (*((int **)f->esp + 2));
     check_fd(*((int *)f->esp + 1), -1, f)
+    //lock_acquire(&filesys_lock);
     sys_read (*((int *)f->esp + 1), *((int **)f->esp + 2), *((int *)f->esp + 3), f);
+    //lock_release(&filesys_lock);
     break;
   case SYS_WRITE:
     esp_under_phys_base(f, 3);
     under_phys_base (*((int **)f->esp + 2));
     check_fd(*((int *)f->esp + 1), -1, f)
+    //lock_acquire(&filesys_lock);
     sys_write (*((int *)f->esp + 1), *((int **)f->esp + 2), *((int *)f->esp + 3), f);
+    //lock_release(&filesys_lock);
     break;
   case SYS_SEEK:
     esp_under_phys_base(f, 2);
     check_fd(*((int *)f->esp + 1), 0, f)
+    lock_acquire(&filesys_lock);
     sys_seek (*((int *)f->esp + 1), *((int *)f->esp + 2), f);
+    lock_release(&filesys_lock);
     break;
   case SYS_TELL:
     esp_under_phys_base(f, 1);
     check_fd(*((int *)f->esp + 1), 0, f)
+    lock_acquire(&filesys_lock);
     sys_tell (*((int *)f->esp + 1), f);
+    lock_release(&filesys_lock);
     break;
   case SYS_CLOSE:
     esp_under_phys_base(f, 1);
     check_fd(*((int *)f->esp + 1), 0, f)
+    lock_acquire(&filesys_lock);
     sys_close (*((int *)f->esp + 1), f);
+    lock_release(&filesys_lock);
     break;
   }
 }
@@ -281,8 +300,11 @@ sys_write (int fd, void *buffer_, unsigned size, struct intr_frame *f)
     if (t->fd_list[fd] == NULL){
       f->eax = -1;
     }
-    else{
+    else
+    {
+      //lock_acquire(&filesys_lock);
       f->eax = file_write (t->fd_list[fd], buffer_, size); 
+      //lock_release(&filesys_lock);
     }
   }
   return f->eax;
@@ -304,7 +326,11 @@ sys_read (int fd, void *buffer_, unsigned size, struct intr_frame *f)
     if (t->fd_list[fd] == NULL)
       f->eax = -1;
     else
+    {
+      //lock_acquire(&filesys_lock);
       f->eax = file_read (t->fd_list[fd], buffer, size);
+      //lock_release(&filesys_lock);
+    }
   }
   return f->eax;
 }

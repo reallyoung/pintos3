@@ -3,6 +3,7 @@
 #include "userprog/pagedir.h"
 #include "threads/malloc.h"
 #include "vm/frame.h"
+#include "userprog/syscall.h"
 //#include "threads/"
 
 static unsigned spt_hash_func(const struct hash_elem* e, void *aux UNUSED)
@@ -89,14 +90,16 @@ bool load_from_file(struct spte* s)
             return false;
 
         /* Load this page. */
+        lock_acquire(&filesys_lock);
         if (file_read(file, kpage, page_read_bytes) != (int) page_read_bytes)
         {  
+            lock_release(&filesys_lock);
             printf("111111\n\n");
             frame_free (kpage);
             return false; 
         }   
+        lock_release(&filesys_lock);
         memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
         /* Add the page to the process's address space. */
         if (!install_page_s (upage, kpage, writable)) 
         {   
