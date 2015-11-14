@@ -13,6 +13,9 @@
 #include "devices/shutdown.h"
 
 #include "threads/vaddr.h"
+#include "vm/page.h"
+#include "vm/frame.h"
+#include "vm/swap.h"
 
 #define under_phys_base(addr) if((void*)addr >= PHYS_BASE) sys_exit(-1);
 #define esp_under_phys_base(f, args_num) under_phys_base(((int*)(f->esp)+args_num+1))
@@ -30,7 +33,8 @@ static int sys_filesize (int fd, struct intr_frame *f);
 static void sys_seek (int fd, unsigned position, struct intr_frame *f);
 static unsigned sys_tell (int fd, struct intr_frame *f);
 static void sys_close (int fd, struct intr_frame *f);
-
+static void pre_load(uint8_t* buf, unsigned size);
+static void free_pin (uint8_t* buf, unsigned size);
 void
 syscall_init (void) 
 {
@@ -291,6 +295,7 @@ sys_write (int fd, void *buffer_, unsigned size, struct intr_frame *f)
 
   ASSERT (fd >= 0 && fd < FD_MAX);
 //  printf("---------------------\n%d, %s, %d---------------------\n", fd, buffer, size);
+ pre_load(buffer_,size);
   if (fd == 1){
     putbuf(buffer, size);
     f->eax = size;
@@ -307,6 +312,7 @@ sys_write (int fd, void *buffer_, unsigned size, struct intr_frame *f)
       //lock_release(&filesys_lock);
     }
   }
+  free_pin(buffer,size);
   return f->eax;
 }
 
@@ -317,6 +323,7 @@ sys_read (int fd, void *buffer_, unsigned size, struct intr_frame *f)
   char *buffer = (char*)buffer_;
 
   ASSERT (fd >= 0 && fd < FD_MAX);
+  pre_load(buffer,size);
   if (fd == 0){
     for (i=0; i<size; i++)
       buffer[i] = input_getc();
@@ -332,5 +339,51 @@ sys_read (int fd, void *buffer_, unsigned size, struct intr_frame *f)
       //lock_release(&filesys_lock);
     }
   }
+  free_pin(buffer,size);
   return f->eax;
+}
+
+static void
+pre_load(uint8_t* buf, unsigned size)
+{
+    unsigned i;
+    struct thread* t =thread_current();
+    struct spte* s;
+    void* kpage;
+    for(i=0;i<size;i++)
+    {
+        s = get_spte(&t->spt, buf + i);
+        if(!s)
+        {
+            if( (buf+i) < (thread_current()->esp - 32))
+                sys_exit(-1);
+            if(!grow_stack(buf + i))
+                PANIC("grow stack fail in pre load\n");
+            s = get_spte(&t->spt, buf + i);
+            s->pinned = true;
+        }
+        else if(s->in_swap)
+        {
+            s->pinned = true;
+            kpage = falloc(PAL_USER|PAL_ZERO, s); 
+            install_page_s(s->vaddr, kpage, s->writable);
+            swap_in(s->vaddr, s->swap_idx);
+            s->in_swap = false;
+        }
+        
+    }
+}
+static void
+free_pin (uint8_t* buf, unsigned size)
+{
+    size_t i;
+    struct thread* t =thread_current();
+    struct spte* s;
+    for(i=0;i<size;i++)
+    {
+        s = get_spte(&t->spt, buf + i);
+        if(!s)
+            PANIC("where is spte???\n");
+        s->pinned = false;
+    }
 }

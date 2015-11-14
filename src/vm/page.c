@@ -168,7 +168,7 @@ bool make_stack_page(void **esp)
     s->type = stack_t;
     s->vaddr = *esp - PGSIZE;
     s->t = thread_current();
-    s->pinned = true;
+    s->pinned = false;
     s->in_swap = false;
     s->writable = true;
 
@@ -208,7 +208,7 @@ bool grow_stack(void* fault_addr)
     s->type = stack_t;
     s->vaddr = pg_round_down(fault_addr);
     s->t = thread_current();
-    s->pinned = true;
+    s->pinned = false;
     s->in_swap =false;
     s->writable = true;
     kpage = falloc(PAL_USER | PAL_ZERO, s);
@@ -234,8 +234,8 @@ bool grow_stack(void* fault_addr)
         printf("gs falloc fail\n");
         free(s);
     }
-    if(intr_context())
-        s->pinned = false;
+  //  if(intr_context())
+  //      s->pinned = false;
     return success;
     
 }
