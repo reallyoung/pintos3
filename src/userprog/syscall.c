@@ -16,6 +16,7 @@
 #include "vm/page.h"
 #include "vm/frame.h"
 #include "vm/swap.h"
+#include "userprog/pagedir.h"
 
 #define under_phys_base(addr) if((void*)addr >= PHYS_BASE) sys_exit(-1);
 #define esp_under_phys_base(f, args_num) under_phys_base(((int*)(f->esp)+args_num+1))
@@ -350,16 +351,19 @@ pre_load(uint8_t* buf, unsigned size)
     struct thread* t =thread_current();
     struct spte* s;
     void* kpage;
+    uint32_t *pte;
     for(i=0;i<size;i++)
     {
         s = get_spte(&t->spt, buf + i);
-        if(!s)
+        if(!s && ((void*)(buf+i) > STACK_END))
         {
             if( (buf+i) < (thread_current()->esp - 32))
                 sys_exit(-1);
             if(!grow_stack(buf + i))
                 PANIC("grow stack fail in pre load\n");
             s = get_spte(&t->spt, buf + i);
+            if(!s)
+                PANIC("WHERE IS SPTE??!\n");
             s->pinned = true;
         }
         else if(s->in_swap)
@@ -369,6 +373,16 @@ pre_load(uint8_t* buf, unsigned size)
             install_page_s(s->vaddr, kpage, s->writable);
             swap_in(s->vaddr, s->swap_idx);
             s->in_swap = false;
+        }
+        else if(!s && s->type == file_t)
+        {
+            //if not present load it
+            pte = lookup_page(s->t->pagedir,s->vaddr,false);
+            if(!(*pte & 0x00000001))
+            {
+                s->pinned = true;
+                load_from_file(s);        
+            }
         }
         
     }

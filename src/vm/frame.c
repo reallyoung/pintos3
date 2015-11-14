@@ -22,31 +22,26 @@ void* falloc(enum palloc_flags flags, struct spte* spte)
         //PANIC("falloc not pal_user\n");
         return NULL;
     }
-    //printf("0 %s %d\n",spte->t->name, spte->t->tid);
+   // printf("0 %s %d\n",spte->t->name, spte->t->tid);
     lock_acquire(&ft_lock);
 RETRY:
-    //printf("1 %s %d\n",spte->t->name, spte->t->tid);
+   // printf("1 %s %d\n",spte->t->name, spte->t->tid);
     kpage = palloc_get_page(flags);
-    //lock_release(&ft_lock);
     if(kpage == NULL)
     {
-        //printf("2 %s %d\n",spte->t->name, spte->t->tid);
-        //PANIC("palloc fail in falloc\n");
-        //evict and retry
+     //   printf("2 %s %d\n",spte->t->name, spte->t->tid);
         frame_evict();
-        //printf("3 %s %d\n",spte->t->name, spte->t->tid);
-        //lock_release(&ft_lock);
+      //  printf("3 %s %d\n",spte->t->name, spte->t->tid);
         goto RETRY;
     }
     else
     {
-        //printf("4 %s %d\n",spte->t->name, spte->t->tid);
+       // printf("4 %s %d\n",spte->t->name, spte->t->tid);
         frame_insert(kpage,spte);
-        //printf("5 %s %d\n",spte->t->name, spte->t->tid);
-        //lock_release(&ft_lock);
+       // printf("5 %s %d\n",spte->t->name, spte->t->tid);
     }
     lock_release(&ft_lock);
-    //printf("6 %s %d\n",spte->t->name, spte->t->tid);
+  //  printf("6 %s %d\n",spte->t->name, spte->t->tid);
     return kpage;
 
 }
