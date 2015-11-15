@@ -105,24 +105,24 @@ syscall_handler (struct intr_frame *f)
     esp_under_phys_base(f, 3);
     under_phys_base (*((int **)f->esp + 2));
     check_fd(*((int *)f->esp + 1), -1, f)
-    //lock_acquire(&filesys_lock);
+    lock_acquire(&filesys_lock);
     sys_read (*((int *)f->esp + 1), *((int **)f->esp + 2), *((int *)f->esp + 3), f);
-    //lock_release(&filesys_lock);
+    lock_release(&filesys_lock);
     break;
   case SYS_WRITE:
     esp_under_phys_base(f, 3);
     under_phys_base (*((int **)f->esp + 2));
     check_fd(*((int *)f->esp + 1), -1, f)
-    //lock_acquire(&filesys_lock);
+   // lock_acquire(&filesys_lock);
     sys_write (*((int *)f->esp + 1), *((int **)f->esp + 2), *((int *)f->esp + 3), f);
-    //lock_release(&filesys_lock);
+   // lock_release(&filesys_lock);
     break;
   case SYS_SEEK:
     esp_under_phys_base(f, 2);
     check_fd(*((int *)f->esp + 1), 0, f)
-    lock_acquire(&filesys_lock);
+   // lock_acquire(&filesys_lock);
     sys_seek (*((int *)f->esp + 1), *((int *)f->esp + 2), f);
-    lock_release(&filesys_lock);
+   // lock_release(&filesys_lock);
     break;
   case SYS_TELL:
     esp_under_phys_base(f, 1);
@@ -308,9 +308,9 @@ sys_write (int fd, void *buffer_, unsigned size, struct intr_frame *f)
     }
     else
     {
-      //lock_acquire(&filesys_lock);
+    //  lock_acquire(&filesys_lock);
       f->eax = file_write (t->fd_list[fd], buffer_, size); 
-      //lock_release(&filesys_lock);
+    //  lock_release(&filesys_lock);
     }
   }
   free_pin(buffer,size);
@@ -335,9 +335,9 @@ sys_read (int fd, void *buffer_, unsigned size, struct intr_frame *f)
       f->eax = -1;
     else
     {
-      //lock_acquire(&filesys_lock);
+     // lock_acquire(&filesys_lock);
       f->eax = file_read (t->fd_list[fd], buffer, size);
-      //lock_release(&filesys_lock);
+    //  lock_release(&filesys_lock);
     }
   }
   free_pin(buffer,size);
@@ -352,9 +352,11 @@ pre_load(uint8_t* buf, unsigned size)
     struct spte* s;
     void* kpage;
     uint32_t *pte;
+    //printf("pre load called!\n");
     for(i=0;i<size;i++)
     {
         s = get_spte(&t->spt, buf + i);
+        //printf("spte type = %d \n",s->type);
         if(!s && ((void*)(buf+i) > STACK_END))
         {
             if( (buf+i) < (thread_current()->esp - 32))
@@ -374,12 +376,14 @@ pre_load(uint8_t* buf, unsigned size)
             swap_in(s->vaddr, s->swap_idx);
             s->in_swap = false;
         }
-        else if(!s && s->type == file_t)
+        else if(s && s->type == file_t)
         {
+         //    printf("00 it called!\n");
             //if not present load it
-            pte = lookup_page(s->t->pagedir,s->vaddr,false);
+            pte = lookup_page(s->t->pagedir,s->vaddr,true);
             if(!(*pte & 0x00000001))
             {
+              //  printf("01 it called!\n");
                 s->pinned = true;
                 load_from_file(s);        
             }
