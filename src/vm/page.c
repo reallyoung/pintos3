@@ -102,8 +102,9 @@ bool load_from_file(struct spte* s)
         if (file_read(file, kpage, page_read_bytes) != (int) page_read_bytes)
         {  
             lock_release(&filesys_lock);
-            printf("111111\n\n");
+            //printf("111111\n\n");
             frame_free (kpage);
+            sys_exit(-1);
             return false; 
         }   
         lock_release(&filesys_lock);
@@ -359,6 +360,10 @@ void munmap_file(int map_id)
         lock_release(&ft_lock);
         */
     }
+    lock_acquire(&filesys_lock);
+    file_close(mf->file);
+    lock_release(&filesys_lock);
+
     free_pin(mf->addr, mf->size);
     free(mf);
     t->mmap_list[map_id] = NULL;
