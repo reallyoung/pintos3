@@ -9,6 +9,7 @@
 #include "threads/vaddr.h"
 #include "vm/swap.h"
 #include "vm/frame.h"
+#include "userprog/syscall.h"
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -169,7 +170,8 @@ page_fault (struct intr_frame *f)
             install_page_s(s->vaddr, kpage, s->writable);
             swap_in(s->vaddr, s->swap_idx);
             s->in_swap = false;
-            s->pinned = false;
+            if(!intr_syscall)
+                s->pinned = false;
             return;
         }
     }
@@ -192,7 +194,10 @@ page_fault (struct intr_frame *f)
             goto EXIT; 
         if(s->type == file_t)
         {//load from file
+            s->pinned = true;
             success = load_from_file(s);
+            if(!intr_syscall)
+                s->pinned = false;
             if(!success)
                 PANIC("NOT success in load_from_file\n");
             return;

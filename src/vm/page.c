@@ -83,22 +83,22 @@ bool load_from_file(struct spte* s)
         size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
         size_t page_zero_bytes = PGSIZE - page_read_bytes;
         
-     //   s->pinned = true;
+        //s->pinned = true;
         /* Get a page of memory. */
         void* kpage = falloc (PAL_USER, s);
         if (kpage == NULL)
             return false;
 
         /* Load this page. */
-       // lock_acquire(&filesys_lock);
+        lock_acquire(&filesys_lock);
         if (file_read(file, kpage, page_read_bytes) != (int) page_read_bytes)
         {  
-         //   lock_release(&filesys_lock);
+            lock_release(&filesys_lock);
             printf("111111\n\n");
             frame_free (kpage);
             return false; 
         }   
-      //  lock_release(&filesys_lock);
+        lock_release(&filesys_lock);
         memset (kpage + page_read_bytes, 0, page_zero_bytes);
         /* Add the page to the process's address space. */
         if (!install_page_s (upage, kpage, writable)) 
@@ -108,7 +108,8 @@ bool load_from_file(struct spte* s)
             return false; 
         }   
     }
-    //s->pinned = false;
+    //if(!intr_syscall)
+     //   s->pinned = false;
     return true;
 }
 //replace load_segment
@@ -234,8 +235,8 @@ bool grow_stack(void* fault_addr)
         printf("gs falloc fail\n");
         free(s);
     }
-  //  if(intr_context())
-  //      s->pinned = false;
+    if(!intr_syscall)
+        s->pinned = false;
     return success;
     
 }

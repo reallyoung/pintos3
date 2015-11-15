@@ -144,6 +144,8 @@ void frame_free_on_exit()
         f = list_entry(e,struct frame, elem);
         if(f->t == t)
         {
+            if(f->t->pagedir == NULL)
+                PANIC("pagedir is null\n");
             list_remove(e);
             pagedir_clear_page(f->t->pagedir, f->spte->vaddr);
             palloc_free_page(f->faddr);

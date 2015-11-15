@@ -41,12 +41,14 @@ syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init(&filesys_lock);
+  intr_syscall = false;
 }
 
 static void
 syscall_handler (struct intr_frame *f) 
 {
   int sys_vector;
+ // intr_syscall =true;
   sys_vector=*(int *)(f->esp);
   switch(sys_vector)
   {
@@ -105,9 +107,9 @@ syscall_handler (struct intr_frame *f)
     esp_under_phys_base(f, 3);
     under_phys_base (*((int **)f->esp + 2));
     check_fd(*((int *)f->esp + 1), -1, f)
-    lock_acquire(&filesys_lock);
+    //lock_acquire(&filesys_lock);
     sys_read (*((int *)f->esp + 1), *((int **)f->esp + 2), *((int *)f->esp + 3), f);
-    lock_release(&filesys_lock);
+    //lock_release(&filesys_lock);
     break;
   case SYS_WRITE:
     esp_under_phys_base(f, 3);
@@ -120,9 +122,9 @@ syscall_handler (struct intr_frame *f)
   case SYS_SEEK:
     esp_under_phys_base(f, 2);
     check_fd(*((int *)f->esp + 1), 0, f)
-   // lock_acquire(&filesys_lock);
+    lock_acquire(&filesys_lock);
     sys_seek (*((int *)f->esp + 1), *((int *)f->esp + 2), f);
-   // lock_release(&filesys_lock);
+    lock_release(&filesys_lock);
     break;
   case SYS_TELL:
     esp_under_phys_base(f, 1);
@@ -139,6 +141,7 @@ syscall_handler (struct intr_frame *f)
     lock_release(&filesys_lock);
     break;
   }
+ // intr_syscall =false;
 }
 
 
@@ -308,9 +311,9 @@ sys_write (int fd, void *buffer_, unsigned size, struct intr_frame *f)
     }
     else
     {
-    //  lock_acquire(&filesys_lock);
+      lock_acquire(&filesys_lock);
       f->eax = file_write (t->fd_list[fd], buffer_, size); 
-    //  lock_release(&filesys_lock);
+      lock_release(&filesys_lock);
     }
   }
   free_pin(buffer,size);
@@ -335,9 +338,9 @@ sys_read (int fd, void *buffer_, unsigned size, struct intr_frame *f)
       f->eax = -1;
     else
     {
-     // lock_acquire(&filesys_lock);
+      lock_acquire(&filesys_lock);
       f->eax = file_read (t->fd_list[fd], buffer, size);
-    //  lock_release(&filesys_lock);
+      lock_release(&filesys_lock);
     }
   }
   free_pin(buffer,size);
@@ -353,6 +356,7 @@ pre_load(uint8_t* buf, unsigned size)
     void* kpage;
     uint32_t *pte;
     //printf("pre load called!\n");
+    intr_syscall =true;
     for(i=0;i<size;i++)
     {
         s = get_spte(&t->spt, buf + i);
@@ -380,8 +384,8 @@ pre_load(uint8_t* buf, unsigned size)
         {
          //    printf("00 it called!\n");
             //if not present load it
-            pte = lookup_page(s->t->pagedir,s->vaddr,true);
-            if(!(*pte & 0x00000001))
+            pte = lookup_page(s->t->pagedir,s->vaddr,false);
+            if(pte != NULL && !(*pte & 0x00000001))
             {
               //  printf("01 it called!\n");
                 s->pinned = true;
@@ -397,6 +401,7 @@ free_pin (uint8_t* buf, unsigned size)
     size_t i;
     struct thread* t =thread_current();
     struct spte* s;
+    intr_syscall =false;
     for(i=0;i<size;i++)
     {
         s = get_spte(&t->spt, buf + i);
