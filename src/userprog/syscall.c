@@ -34,8 +34,8 @@ static int sys_filesize (int fd, struct intr_frame *f);
 static void sys_seek (int fd, unsigned position, struct intr_frame *f);
 static unsigned sys_tell (int fd, struct intr_frame *f);
 static void sys_close (int fd, struct intr_frame *f);
-static void pre_load(uint8_t* buf, unsigned size);
-static void free_pin (uint8_t* buf, unsigned size);
+//static void pre_load(uint8_t* buf, unsigned size);
+//static void free_pin (uint8_t* buf, unsigned size);
 int sys_mmap(int fd, void* addr, struct intr_frame *f);
 void sys_munmap(int map_id, struct intr_frame *f);
 
@@ -392,7 +392,7 @@ void sys_munmap(int map_id, struct intr_frame *f UNUSED)
 {
     munmap_file(map_id);
 }
-static void
+void
 pre_load(uint8_t* buf, unsigned size)
 {
     unsigned i;
@@ -440,7 +440,7 @@ pre_load(uint8_t* buf, unsigned size)
         
     }
 }
-static void
+void
 free_pin (uint8_t* buf, unsigned size)
 {
     size_t i;

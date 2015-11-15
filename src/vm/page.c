@@ -330,6 +330,7 @@ void munmap_file(int map_id)
     mf = t->mmap_list[map_id];
     if(mf == NULL)
         PANIC("mf is NULL\n");
+    pre_load(mf->addr,mf->size);
     for(e=list_begin(&mf->spte_list);e != list_end(&mf->spte_list);e= list_next(e))
     {
         s = list_entry(e, struct spte, l_elem);
@@ -358,6 +359,7 @@ void munmap_file(int map_id)
         lock_release(&ft_lock);
         */
     }
+    free_pin(mf->addr, mf->size);
     free(mf);
     t->mmap_list[map_id] = NULL;
     t->mmap_cnt--;
