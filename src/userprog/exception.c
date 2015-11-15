@@ -192,7 +192,7 @@ page_fault (struct intr_frame *f)
         s = get_spte(&thread_current()->spt,fault_addr);
         if(s == NULL)
             goto EXIT; 
-        if(s->type == file_t)
+        if(s->type == file_t || s->type == mmap_t)
         {//load from file
             s->pinned = true;
             success = load_from_file(s);

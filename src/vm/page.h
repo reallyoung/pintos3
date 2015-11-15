@@ -29,8 +29,17 @@ struct spte{
     bool writable;
     
     size_t swap_idx;
-
+    
     struct hash_elem elem;
+    struct list_elem l_elem;
+};
+struct mmap_file{
+    struct file* file;
+    int map_id;
+    int size;
+    void* addr;
+    struct thread* t;
+    struct list spte_list;
 };
 bool load_from_file(struct spte* s);
 bool lazy_load_segment(struct file *file, off_t ofs, uint8_t *upage,
@@ -40,4 +49,7 @@ bool init_spt(struct hash* spt);
 bool make_stack_page(void **esp);
 void free_page_table(struct hash* spt);
 bool grow_stack(void* fault_addr);
+int mmap_file(struct file* file, void* addr, int size);
+void munmap_file(int map_id);
+bool check_map(void* addr, int size);
 #endif

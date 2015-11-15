@@ -139,8 +139,8 @@ bool lazy_load_segment(struct file *file, off_t ofs_, uint8_t *upage,
         s->pinned = false;
         s->file = file;
         s->offset = ofs;
-        s->read_byte = read_bytes;
-        s->zero_byte = zero_bytes;
+        s->read_byte = page_read_bytes;
+        s->zero_byte = page_zero_bytes;
         s->writable = writable;
         
         success = !hash_insert(&thread_current()->spt, &s->elem);
@@ -239,4 +239,88 @@ bool grow_stack(void* fault_addr)
         s->pinned = false;
     return success;
     
+}
+int mmap_file(struct file* file, void* addr, int size)
+{
+    struct mmap_file * mf = (struct mmap_file*)malloc(sizeof(struct mmap_file));
+    struct thread* t = thread_current();
+    struct spte* s;
+    bool success;
+    off_t ofs;
+    uint8_t* upage;
+    uint32_t read_bytes;
+    uint32_t zero_bytes;
+    bool writable;
+    //initalize
+    mf->file = file;
+    mf->map_id = t->mmap_num++;
+    mf->size = size;
+    mf->addr = addr;
+    mf->t = t;
+    list_init(&mf->spte_list);
+    //set up
+    ofs = 0;
+    upage = addr;
+    read_bytes = mf->size;
+    zero_bytes = PGSIZE -(mf->size % PGSIZE);
+    writable = true;
+
+   while (read_bytes > 0 || zero_bytes > 0)
+    {
+        /* Calculate how to fill this page.
+         *          We will read PAGE_READ_BYTES bytes from FILE
+         *                   and zero the final PAGE_ZERO_BYTES bytes. */
+        size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+        size_t page_zero_bytes = PGSIZE - page_read_bytes;
+        
+        s = (struct spte*)malloc(sizeof(struct spte));
+        s->type = mmap_t;
+        s->vaddr = upage;
+        s->t = thread_current();
+        s->in_swap = false;
+        s->pinned = false;
+        s->file = file;
+        s->offset = ofs;
+        s->read_byte = page_read_bytes;
+        s->zero_byte = page_zero_bytes;
+        s->writable = writable;
+        
+        list_push_back(&mf->spte_list, &s->l_elem);
+        success = !hash_insert(&thread_current()->spt, &s->elem);
+        if (!success)
+        {
+            PANIC("hash insert fail in lazy load segment\n");
+        }
+        //load_from_file(s);
+        /* Advance. */
+        read_bytes -= page_read_bytes;
+        zero_bytes -= page_zero_bytes;
+        ofs += page_read_bytes;
+        //ofs += page_zero_bytes;
+        upage += PGSIZE;
+
+    }
+
+    t->mmap_list[mf->map_id] = mf;
+    return mf->map_id;
+}
+void munmap_file(int map_id)
+{
+
+}
+bool check_map(void* addr, int size)
+{
+    struct thread* t;
+    struct mmap_file* mf;
+    int i;
+    t = thread_current();
+    for(i=0;i<t->mmap_num;i++)
+    {
+        mf = t->mmap_list[i];
+        if(!((unsigned)mf->addr >((unsigned)addr + (unsigned)size)||
+                ((unsigned)mf->addr +(unsigned)mf->size)<(unsigned)addr))
+            return true;
+    }
+    return false;
+    // if overlap return true
 }

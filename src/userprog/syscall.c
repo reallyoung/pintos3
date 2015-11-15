@@ -36,6 +36,9 @@ static unsigned sys_tell (int fd, struct intr_frame *f);
 static void sys_close (int fd, struct intr_frame *f);
 static void pre_load(uint8_t* buf, unsigned size);
 static void free_pin (uint8_t* buf, unsigned size);
+int sys_mmap(int fd, void* addr, struct intr_frame *f);
+void sys_munmap(int map_id, struct intr_frame *f);
+
 void
 syscall_init (void) 
 {
@@ -140,6 +143,18 @@ syscall_handler (struct intr_frame *f)
     sys_close (*((int *)f->esp + 1), f);
     lock_release(&filesys_lock);
     break;
+  case SYS_MMAP:
+    esp_under_phys_base(f, 2);
+    under_phys_base (*((int **)f->esp + 2));
+    check_fd(*((int *)f->esp + 1), -1, f)
+    sys_mmap (*((int *)f->esp + 1), *((int **)f->esp + 2), f);
+    break;
+  case SYS_MUNMAP:
+    esp_under_phys_base(f, 1);
+    //check_fd(*((int *)f->esp + 1), 0, f)
+    sys_munmap (*((int *)f->esp + 1), f);
+    break;
+    
   }
  // intr_syscall =false;
 }
@@ -346,7 +361,36 @@ sys_read (int fd, void *buffer_, unsigned size, struct intr_frame *f)
   free_pin(buffer,size);
   return f->eax;
 }
-
+int sys_mmap(int fd, void* addr, struct intr_frame *f)
+{
+    struct thread *t = thread_current();
+    struct file* r_file;
+    int len;
+    int size;
+    if (t->fd_list[fd] == NULL){
+      f->eax = -1;
+    }
+    else
+    {
+        lock_acquire(&filesys_lock);
+        len = file_length(t->fd_list[fd]);
+        r_file = file_reopen(t->fd_list[fd]);
+        size = file_length(r_file);
+        lock_release(&filesys_lock);
+        if(len ==0 || r_file == NULL || (unsigned)addr % PGSIZE != 0 ||
+                check_map(addr,size) ||!is_user_vaddr(addr))
+        {
+            f->eax = -1;
+            return f->eax;
+        }
+        f->eax = mmap_file(r_file, addr, size);
+    }
+    return f->eax;
+}
+void sys_munmap(int map_id, struct intr_frame *f UNUSED)
+{
+    munmap_file(map_id);
+}
 static void
 pre_load(uint8_t* buf, unsigned size)
 {

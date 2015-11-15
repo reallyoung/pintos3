@@ -7,6 +7,7 @@
 #include "threads/synch.h"
 #include "filesys/file.h"
 #include <hash.h>
+#include "vm/page.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -129,6 +130,8 @@ struct thread
     char process_name[16];
     struct file *fd_list[FD_MAX];
     int fd_num; 
+    struct mmap_file* mmap_list[FD_MAX];
+    int mmap_num;
     struct file *open_file;
   };
 
