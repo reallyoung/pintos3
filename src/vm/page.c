@@ -289,7 +289,10 @@ int mmap_file(struct file* file, void* addr, int size)
         success = !hash_insert(&thread_current()->spt, &s->elem);
         if (!success)
         {
-            PANIC("hash insert fail in lazy load segment\n");
+            //over laping
+            //we have to free mmaped things
+            return -1;
+           // PANIC("hash insert fail in lazy load segment\n");
         }
         //load_from_file(s);
         /* Advance. */

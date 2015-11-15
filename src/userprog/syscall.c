@@ -378,7 +378,8 @@ int sys_mmap(int fd, void* addr, struct intr_frame *f)
         size = file_length(r_file);
         lock_release(&filesys_lock);
         if(len ==0 || r_file == NULL || (unsigned)addr % PGSIZE != 0 ||
-                check_map(addr,size) ||!is_user_vaddr(addr))
+                check_map(addr,size) ||!is_user_vaddr(addr)||
+                addr < (void *) 0x08048000)
         {
             f->eax = -1;
             return f->eax;
