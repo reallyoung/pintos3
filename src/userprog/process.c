@@ -180,6 +180,7 @@ process_exit (void)
          directory, or our active page directory will be one
          that's been freed (and cleared). */
       //printf("00\n");
+      munmap_all();
       lock_acquire(&ft_lock);
       frame_free_on_exit();
       lock_release(&ft_lock);

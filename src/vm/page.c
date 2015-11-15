@@ -3,6 +3,7 @@
 #include "userprog/pagedir.h"
 #include "threads/malloc.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 #include "userprog/syscall.h"
 //#include "threads/"
 
@@ -23,6 +24,13 @@ static bool spt_less_func(const struct hash_elem *a,
 static void spt_action_func(struct hash_elem *e, void *aux UNUSED)
 {
     struct spte* s = hash_entry(e, struct spte, elem);
+    lock_acquire(&swap_lock);
+//    lock_acquire(&ft_lock);
+    if(s->in_swap)
+        clear_swap(s->swap_idx);
+  //  frame_ffree(pagedir_get_page(s->t->pagedir, s->vaddr));
+   // lock_release(&ft_lock);
+    lock_release(&swap_lock);
     free(s);
 }
 void free_page_table(struct hash* spt)
@@ -254,10 +262,12 @@ int mmap_file(struct file* file, void* addr, int size)
     //initalize
     mf->file = file;
     mf->map_id = t->mmap_num++;
+    t->mmap_cnt++;
     mf->size = size;
     mf->addr = addr;
     mf->t = t;
     list_init(&mf->spte_list);
+    t->mmap_list[mf->map_id] = mf;
     //set up
     ofs = 0;
     upage = addr;
@@ -285,15 +295,18 @@ int mmap_file(struct file* file, void* addr, int size)
         s->zero_byte = page_zero_bytes;
         s->writable = writable;
         
-        list_push_back(&mf->spte_list, &s->l_elem);
         success = !hash_insert(&thread_current()->spt, &s->elem);
         if (!success)
         {
             //over laping
             //we have to free mmaped things
+            //delete overlaped entry
+            free(s);
+            munmap_file(mf->map_id);
             return -1;
            // PANIC("hash insert fail in lazy load segment\n");
         }
+         list_push_back(&mf->spte_list, &s->l_elem);
         //load_from_file(s);
         /* Advance. */
         read_bytes -= page_read_bytes;
@@ -303,13 +316,51 @@ int mmap_file(struct file* file, void* addr, int size)
         upage += PGSIZE;
 
     }
-
-    t->mmap_list[mf->map_id] = mf;
     return mf->map_id;
 }
 void munmap_file(int map_id)
 {
-
+    struct thread* t;
+    struct mmap_file* mf;
+    struct list_elem* e;
+    struct spte* s;
+    int i;
+    uint32_t *pte;
+    t = thread_current();
+    mf = t->mmap_list[map_id];
+    if(mf == NULL)
+        PANIC("mf is NULL\n");
+    for(e=list_begin(&mf->spte_list);e != list_end(&mf->spte_list);e= list_next(e))
+    {
+        s = list_entry(e, struct spte, l_elem);
+        if(pagedir_is_dirty(t->pagedir, s->vaddr))
+        {//write back to file
+            //will need pre_load
+            lock_acquire(&filesys_lock);
+            file_write_at(s->file,s->vaddr,s->read_byte,s->offset);
+            lock_release(&filesys_lock);
+        }
+        
+        //have to delete spte and free frame?
+       /* lock_acquire(&ft_lock);
+        lock_acquire(&swap_lock);
+        pte = lookup_page(s->t->pagedir,s->vaddr,false);
+        if(pte != NULL && (*pte & 0x00000001))
+        {//in frame
+            frame_ffree(pagedir_get_page(s->t->pagedir,s->vaddr));
+        }
+        if(s->in_swap)
+            clear_swap(s->swap_idx);
+        lock_release(&swap_lock);
+        
+        hash_delete(&s->t->spt, &s->elem);
+        free(s);
+        lock_release(&ft_lock);
+        */
+    }
+    free(mf);
+    t->mmap_list[map_id] = NULL;
+    t->mmap_cnt--;
 }
 bool check_map(void* addr, int size)
 {
@@ -326,4 +377,16 @@ bool check_map(void* addr, int size)
     }
     return false;
     // if overlap return true
+}
+void munmap_all()
+{
+    struct thread* t;
+    struct mmap_file* mf;
+    int i;
+    t = thread_current();
+    for(i=0;i<FD_MAX;i++)
+    {
+        if(t->mmap_list[i])
+            munmap_file(i);
+    }
 }

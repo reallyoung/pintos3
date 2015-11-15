@@ -25,4 +25,5 @@ void frame_free(void* faddr);
 void frame_insert(void* faddr, struct spte* spte);
 void frame_evict();
 void frame_free_on_exit();
+void frame_ffree(void* faddr);
 #endif

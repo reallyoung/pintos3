@@ -640,9 +640,10 @@ init_thread (struct thread *t, const char *name, int priority)
 
   memset (&t->fd_list, 0, (sizeof(struct file*)) * FD_MAX);
   t->fd_num = 2;
-
+  
+  memset (&t->mmap_list, 0, (sizeof(struct mmap_file*)) * FD_MAX);
   t->mmap_num = 0;
-
+  t->mmap_cnt = 0;
   list_push_back (&all_list, &t->allelem);
 }
 

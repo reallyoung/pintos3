@@ -52,4 +52,5 @@ bool grow_stack(void* fault_addr);
 int mmap_file(struct file* file, void* addr, int size);
 void munmap_file(int map_id);
 bool check_map(void* addr, int size);
+void munmap_all();
 #endif

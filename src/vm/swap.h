@@ -15,4 +15,5 @@ struct swap_table_ swap_table;
 void swap_init();
 size_t swap_out(void* buf);
 void swap_in(void* buf, size_t bit_idx);
+void clear_swap(size_t bit_idx);
 #endif

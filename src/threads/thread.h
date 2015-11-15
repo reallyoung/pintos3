@@ -132,6 +132,7 @@ struct thread
     int fd_num; 
     struct mmap_file* mmap_list[FD_MAX];
     int mmap_num;
+    int mmap_cnt;
     struct file *open_file;
   };
 

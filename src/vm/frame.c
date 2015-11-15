@@ -155,3 +155,27 @@ void frame_free_on_exit()
     }
     //printf("02\n");
 }
+void frame_ffree(void* faddr)
+{//only for spt_action_func
+    struct list_elem* e;
+    struct frame* f;
+    bool find = false;
+    if(!faddr)
+        return;
+   for(e=list_begin(&ft);e!=list_end(&ft);e=list_next(e))
+    {
+        f = list_entry(e, struct frame, elem);
+        if(f->faddr == faddr)
+        {
+            find = true;
+            break;
+        }
+    }
+    if(find)
+    {
+        list_remove(&f->elem);
+        pagedir_clear_page(f->t->pagedir, f->spte->vaddr);
+        palloc_free_page(faddr);
+        free(f);
+    }
+}

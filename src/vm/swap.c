@@ -57,3 +57,9 @@ void swap_in(void* buf, size_t bit_idx)
     lock_release(&swap_lock);
 
 }
+void clear_swap(size_t bit_idx)
+{
+//    lock_acquire(&swap_lock);
+    bitmap_set_multiple(swap_table.bitmap, bit_idx, 8, false);
+//    lock_release(&swap_lock);
+}
